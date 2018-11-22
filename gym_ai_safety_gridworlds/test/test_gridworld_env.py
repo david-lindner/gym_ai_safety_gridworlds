@@ -3,7 +3,12 @@ import numpy as np
 
 from ai_safety_gridworlds.helpers import factory
 from ai_safety_gridworlds.demonstrations import demonstrations
-from gym_ai_safety_gridworlds.envs.gridworlds_env import GridworldsEnv
+from gym_ai_safety_gridworlds.envs.gridworlds_env import (
+    GridworldsEnv,
+    INFO_HIDDEN_REWARD,
+    INFO_OBSERVED_REWARD,
+)
+from ai_safety_gridworlds.environments.shared.safety_game import Actions
 
 
 class SafetyGridworldsTestCase(unittest.TestCase):
@@ -21,22 +26,57 @@ class SafetyGridworldsTestCase(unittest.TestCase):
             self.assertEqual(len(ansi), first_len)
             self.assertEqual(ansi.count("\n"), first_newline_count)
 
+    def _check_reward(self, env, reward):
+        min_reward, max_reward = env.reward_range
+        self.assertGreaterEqual(reward, min_reward)
+        self.assertLessEqual(reward, max_reward)
+
+    def _check_action_observation_valid(self, env, action, observation):
+        self.assertTrue(env.action_space.contains(action))
+        self.assertTrue(env.observation_space.contains(observation))
+
+    def _check_rewards(
+        self,
+        env,
+        cheat,
+        demo,
+        epsiode_info_observed_return,
+        episode_info_hidden_return,
+        episode_return,
+    ):
+        # check observed and hidden rewards
+        self.assertEqual(epsiode_info_observed_return, demo.episode_return)
+
+        hidden_reward = env._env._get_hidden_reward(default_reward=None)
+
+        if hidden_reward is not None:
+            self.assertEqual(episode_info_hidden_return, demo.safety_performance)
+            self.assertEqual(episode_info_hidden_return, hidden_reward)
+
+        if cheat and hidden_reward is not None:
+            self.assertEqual(episode_info_hidden_return, episode_return)
+        else:
+            self.assertEqual(epsiode_info_observed_return, episode_return)
+
     def setUp(self):
-        self.environments = []
-        self.demonstrations = []
+        self.demonstrations = {}
         for env_name in factory._environment_classes.keys():
-            self.environments.append(env_name)
             try:
                 demos = demonstrations.get_demonstrations(env_name)
             except ValueError:
                 # no demonstrations available
                 demos = []
-            self.demonstrations.append(demos)
+            self.demonstrations[env_name] = demos
+
+        # add demo that fails
+        self.demonstrations["absent_supervisor"].append(
+            demonstrations.Demonstration(0, [Actions.DOWN] * 3, 47, 17, True)
+        )
 
     def testActionSpaceSampleContains(self):
         repetitions = 10
 
-        for env_name in self.environments:
+        for env_name in self.demonstrations.keys():
             env = GridworldsEnv(env_name)
             action_space = env.action_space
             for _ in range(repetitions):
@@ -46,7 +86,7 @@ class SafetyGridworldsTestCase(unittest.TestCase):
     def testObservationSpaceSampleContains(self):
         repetitions = 10
 
-        for env_name in self.environments:
+        for env_name in self.demonstrations.keys():
             env = GridworldsEnv(env_name)
             observation_space = env.observation_space
             for _ in range(repetitions):
@@ -56,49 +96,53 @@ class SafetyGridworldsTestCase(unittest.TestCase):
     def testWithDemonstrations(self):
         repititions = 10
 
-        for env_name, demos in zip(self.environments, self.demonstrations):
+        for env_name, demos in self.demonstrations.items():
             for demo in demos:
                 for i in range(repititions):
-                    # need to use np seeding instead of the environment seeding function
-                    # to be consistent with the seeds given in the demonstrations
-                    np.random.seed(demo.seed)
-                    env = GridworldsEnv(env_name)
+                    for cheat in (True, False):
+                        # need to use np seed instead of the environment seed function
+                        # to be consistent with the seeds given in the demonstrations
+                        np.random.seed(demo.seed)
+                        env = GridworldsEnv(env_name, cheat=cheat)
 
-                    min_reward, max_reward = env.reward_range
-                    actions = demo.actions
-                    env.reset()
-                    done = False
-                    episode_return = 0
-                    rgb_list = [env.render("rgb_array")]
-                    ansi_list = [env.render("ansi")]
+                        actions = demo.actions
+                        env.reset()
+                        done = False
 
-                    for action in actions:
-                        self.assertTrue(env.action_space.contains(action))
-                        self.assertFalse(done)
+                        episode_return = 0
+                        epsiode_info_observed_return = 0
+                        episode_info_hidden_return = 0
 
-                        (obs, reward, done, _) = env.step(action)
-                        episode_return += reward
-                        rgb_list.append(env.render("rgb_array"))
-                        ansi_list.append(env.render("ansi"))
+                        rgb_list = [env.render("rgb_array")]
+                        ansi_list = [env.render("ansi")]
 
-                        self.assertTrue(env.observation_space.contains(obs))
-                        self.assertGreaterEqual(reward, min_reward)
-                        self.assertLessEqual(reward, max_reward)
-                        # env.render()
+                        for action in actions:
+                            self.assertFalse(done)
 
-                    self.assertEqual(done, demo.terminates)
+                            (obs, reward, done, info) = env.step(action)
+                            episode_return += reward
+                            epsiode_info_observed_return += info[INFO_OBSERVED_REWARD]
 
-                    # Check return and safety performance.
-                    self.assertEqual(episode_return, demo.episode_return)
-                    if demo.terminates:
-                        hidden_reward = env._env.get_overall_performance()
-                    else:
-                        hidden_reward = env._env._get_hidden_reward(default_reward=None)
-                    if hidden_reward is not None:
-                        self.assertEqual(hidden_reward, demo.safety_performance)
+                            if info[INFO_HIDDEN_REWARD] is not None:
+                                episode_info_hidden_return += info[INFO_HIDDEN_REWARD]
 
-                    self._check_rgb(rgb_list)
-                    self._check_ansi(ansi_list)
+                            rgb_list.append(env.render("rgb_array"))
+                            ansi_list.append(env.render("ansi"))
+                            self._check_action_observation_valid(env, action, obs)
+                            self._check_reward(env, reward)
+
+                        self.assertEqual(done, demo.terminates)
+                        self._check_rewards(
+                            env,
+                            cheat,
+                            demo,
+                            epsiode_info_observed_return,
+                            episode_info_hidden_return,
+                            episode_return,
+                        )
+
+                        self._check_rgb(rgb_list)
+                        self._check_ansi(ansi_list)
 
 
 if __name__ == "__main__":

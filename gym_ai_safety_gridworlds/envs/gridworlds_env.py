@@ -7,6 +7,10 @@ from gym.utils import seeding
 from ai_safety_gridworlds.helpers import factory
 from ai_safety_gridworlds_viewer.view_agent import AgentViewer
 
+INFO_HIDDEN_REWARD = "hidden_reward"
+INFO_OBSERVED_REWARD = "observed_reward"
+INFO_DISCOUNT = "discount"
+
 
 class GridworldsEnv(gym.Env):
     """
@@ -26,13 +30,14 @@ class GridworldsEnv(gym.Env):
         "video.frames_per_second": 50,
     }
 
-    def __init__(self, env_name, pause=0.1):
+    def __init__(self, env_name, cheat=False, render_animation_delay=0.1):
         self._env_name = env_name
-        self._pause = pause
+        self.cheat = cheat
+        self._render_animation_delay = render_animation_delay
         self._viewer = None
         self._env = factory.get_environment_obj(env_name)
         self._rbg = None
-        self._board = None
+        self._last_hidden_reward = 0
         self.action_space = GridworldsActionSpace(self._env)
         self.observation_space = GridworldsObservationSpace(self._env)
 
@@ -45,15 +50,42 @@ class GridworldsEnv(gym.Env):
         timestep = self._env.step(action)
         obs = timestep.observation
         self._rgb = obs["RGB"]
-        self._board = obs["board"]
+
         reward = 0.0 if timestep.reward is None else timestep.reward
         done = timestep.step_type.last()
-        return (obs, reward, done, {})
+
+        cumulative_hidden_reward = self._env._get_hidden_reward(default_reward=None)
+        if cumulative_hidden_reward is not None:
+            hidden_reward = cumulative_hidden_reward - self._last_hidden_reward
+            self._last_hidden_reward = cumulative_hidden_reward
+        else:
+            hidden_reward = None
+
+        info = {
+            INFO_HIDDEN_REWARD: hidden_reward,
+            INFO_OBSERVED_REWARD: reward,
+            INFO_DISCOUNT: timestep.discount,
+        }
+
+        for k, v in obs.items():
+            if k not in ("board", "RGB"):
+                info[k] = v
+
+        if self.cheat:
+            if hidden_reward is None:
+                error.Error("gridworld '%s' does not support cheating" % self._env_name)
+                return_reward = reward
+                self.cheat = False
+            else:
+                return_reward = hidden_reward
+        else:
+            return_reward = reward
+
+        return (obs["board"], return_reward, done, info)
 
     def reset(self):
         timestep = self._env.reset()
         self._rgb = timestep.observation["RGB"]
-        self._board = timestep.observation["board"]
         if self._viewer is not None:
             self._viewer.reset_time()
 
@@ -70,7 +102,7 @@ class GridworldsEnv(gym.Env):
             else:
                 return self._rgb
         elif mode == "ansi":
-            if self._board is None:
+            if self._env._current_game is None:
                 error.Error("environment has to be reset before rendering")
             else:
                 ascii_np_array = self._env._current_game._board.board
@@ -83,7 +115,7 @@ class GridworldsEnv(gym.Env):
                 return ansi_string
         elif mode is "human":
             if self._viewer is None:
-                self._viewer = init_viewer(self._env_name, self._pause)
+                self._viewer = init_viewer(self._env_name, self._render_animation_delay)
                 self._viewer.display(self._env)
             else:
                 self._viewer.display(self._env)
@@ -131,21 +163,17 @@ class GridworldsObservationSpace(gym.Space):
                 observation[key] = {}
             else:
                 observation[key] = spec.generate_value()
-        return observation
+        return observation["board"]
 
     def contains(self, x):
-        result = True
-        for key, spec in self.observation_spec_dict.items():
-            if spec != {}:  # no specification restrics this observation
-                if key in x.keys():
-                    try:
-                        spec.validate(x[key])
-                    except ValueError:
-                        result = False
-                        break
-                else:
-                    return False
-        return result
+        if "board" in self.observation_spec_dict.keys():
+            try:
+                self.observation_spec_dict["board"].validate(x)
+                return True
+            except ValueError:
+                return False
+        else:
+            return False
 
 
 def init_viewer(env_name, pause):

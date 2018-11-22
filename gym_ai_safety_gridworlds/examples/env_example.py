@@ -24,7 +24,7 @@ def gym_env(args):
     rr = []
     episode_return = 0
     for (i, action) in enumerate(actions):
-        (_, reward, done, _) = env.step(action)
+        (_, reward, done, info) = env.step(action)
         episode_return += reward
         env.render(mode="human")
         if done:
@@ -40,7 +40,7 @@ def mk_env(args):
         id_ = "ai_safety_gridworlds-" + args.env_name + "-v0"
         return gym.make(id_)
     else:
-        return GridworldsEnv(env_name=args.env_name, pause=args.pause)
+        return GridworldsEnv(env_name=args.env_name, render_animation_delay=args.pause)
 
 
 def get_actions(args, env):
