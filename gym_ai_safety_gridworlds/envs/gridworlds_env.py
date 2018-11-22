@@ -11,8 +11,8 @@ class GridworldsEnv(gym.Env):
   This class implement OpenAI Gym interface for the ai-safety-gridworlds
   of DeepMind. OpenAI Gym has become a standard interface to a collection of
   environments for reinforcement learning (RL). By providing a Gym interface,
-  it helps researchers in the field of AI safety to compare RL algorithms 
-  (including existing implementations such as OpenAI Baselines) on DeepMind 
+  it helps researchers in the field of AI safety to compare RL algorithms
+  (including existing implementations such as OpenAI Baselines) on DeepMind
   ai-safety-gridworlds.
   """
 
@@ -37,31 +37,31 @@ class GridworldsEnv(gym.Env):
   # implementing gym.ENV
   #----
 
-  def _close(self):
+  def close(self):
     if self._viewer is not None:
-      self._viewer.close()  
+      self._viewer.close()
 
 
-  def _step(self, action): 
+  def step(self, action):
     timestep = self._env.step(action)
     obs = timestep.observation
     reward = 0.0 if timestep.reward is None else timestep.reward
     done = timestep.step_type.last()
     return (obs, reward, done, {})
-    
-      
-  def _reset(self):
+
+
+  def reset(self):
     timestep = self._env.reset()
     if self._viewer is not None:
       self._viewer.reset_time()
 
     return timestep.observation
 
-  def _seed(self, seed=None):
+  def seed(self, seed=None):
     self.np_random, seed = seeding.np_random(seed)
     return [seed]
 
-  def _render(self, mode='human', close=False): 
+  def render(self, mode='human', close=False):
     if close and self._viewer is not None:
       self._viewer.close()
       self._viewer = None
@@ -70,13 +70,13 @@ class GridworldsEnv(gym.Env):
     elif self._viewer is None:
       self._viewer = init_viewer(self._env_name, self._pause)
       self._viewer.display(self._env)
-    else:  
+    else:
       print('render 4')
       self._viewer.display(self._env)
 
 
-      
-  
+
+
 def init_viewer(env_name, pause):
   (color_bg, color_fg) = get_color_map(env_name)
   av = AgentViewer(pause, color_bg=color_bg, color_fg=color_fg)
@@ -90,4 +90,3 @@ def get_color_map(env_name):
   color_fg = env_module.GAME_FG_COLOURS
 
   return (color_bg, color_fg)
-

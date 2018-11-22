@@ -20,14 +20,14 @@ setup(
 
     install_requires=[
       'gym',
-      'enum34',       # required by ai-safety-gridworlds 
-      'abseil-py',    # required by ai-safety-gridworlds 
-      'pycolab',      # required by ai-safety-gridworlds 
-      'ai-safety-gridworlds' 
+      'enum34',       # required by ai-safety-gridworlds
+      'abseil-py',    # required by ai-safety-gridworlds
+      'pycolab',      # required by ai-safety-gridworlds
+      'ai-safety-gridworlds'
     ],
 
     dependency_links=[
-      'https://github.com/abseil/abseil-py/tarball/master#egg=abseil-py-0.1.7', 
+      'https://github.com/abseil/abseil-py/tarball/master#egg=abseil-py-0.1.7',
       'https://github.com/deepmind/pycolab/tarball/master#egg=pycolab-0.1',
       'https://github.com/deepmind/ai-safety-gridworlds/tarball/master#egg=ai-safety-gridworlds-0.1'
     ],

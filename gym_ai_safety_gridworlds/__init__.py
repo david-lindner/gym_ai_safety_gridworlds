@@ -1,5 +1,5 @@
 from gym.envs.registration import register
-from ai_safety_gridworlds.helpers import factory 
+from ai_safety_gridworlds.helpers import factory
 
 
 entry_point = 'gym_ai_safety_gridworlds.envs:GridworldsEnv'
@@ -14,7 +14,6 @@ for env_name in env_names:
     entry_point = entry_point,
     kwargs = {
       'env_name' : env_name,
-      'pause' = 0.2
+      'pause' : 0.2
     }
   )
-

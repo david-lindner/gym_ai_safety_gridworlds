@@ -11,3 +11,6 @@
 # Logging dir used for debuging
 *.log
 /debug_and_log/
+
+# direnv
+.envrc

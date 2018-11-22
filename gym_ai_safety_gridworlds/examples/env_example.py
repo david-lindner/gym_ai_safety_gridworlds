@@ -19,7 +19,7 @@ def gym_env(args):
   env.reset()
   actions = get_actions(args)
 
-  rr = []  
+  rr = []
   episode_return = 0
   for (i, action) in enumerate(actions):
     (_, reward, done, _) = env.step(action)
@@ -50,14 +50,14 @@ def get_actions(args):
 # random actions
 #--------
 
-_actions = [Actions.LEFT, 
-            Actions.RIGHT, 
+_actions = [Actions.LEFT,
+            Actions.RIGHT,
             Actions.UP, 
-            Actions.DOWN, 
+            Actions.DOWN,
             Actions.QUIT]
 
 def rand_actions(seed=0, steps=10):
-  np.random.seed(seed)  
+  np.random.seed(seed)
   # Actions.QUIT is never chosen in this case
   actions = np.random.randint(0, 4, steps)
   return map(lambda a: _actions[a], actions)
@@ -68,7 +68,7 @@ def rand_actions(seed=0, steps=10):
 
 def parse_args():
   parser = argparse.ArgumentParser()
-  parser.add_argument('-e', '--env_name', default='distributional_shift', 
+  parser.add_argument('-e', '--env_name', default='distributional_shift',
       help='e.g. distributional_shift|side_effects_sokoban')
   parser.add_argument('-r', '--rand_act', action='store_true')
   parser.add_argument('-g', '--gym_make', action='store_true')
