@@ -6,7 +6,7 @@ from ai_safety_gridworlds_viewer.view_agent import AgentViewer
 
 
 class GridworldsEnv(gym.Env):
-  """ An unofficial OpenAI Gym interface for DeepMind ai-safety-gridworlds
+    """ An unofficial OpenAI Gym interface for DeepMind ai-safety-gridworlds
 
   This class implement OpenAI Gym interface for the ai-safety-gridworlds
   of DeepMind. OpenAI Gym has become a standard interface to a collection of
@@ -16,77 +16,74 @@ class GridworldsEnv(gym.Env):
   ai-safety-gridworlds.
   """
 
-  metadata = {
-    #TODO
-    'render.modes': ['human'],
-    'video.frames_per_second' : 50
-  }
-  def __init__(self, env_name, pause):
-    self._env_name = env_name
-    self._pause = pause
-    self._viewer = None
+    metadata = {
+        # TODO
+        "render.modes": ["human"],
+        "video.frames_per_second": 50,
+    }
 
-    # TODO
-    self.action_space = None
-    self.observation_space = None
+    def __init__(self, env_name, pause):
+        self._env_name = env_name
+        self._pause = pause
+        self._viewer = None
 
-    self._env = factory.get_environment_obj(env_name)
+        # TODO
+        self.action_space = None
+        self.observation_space = None
 
+        self._env = factory.get_environment_obj(env_name)
 
-  #----
-  # implementing gym.ENV
-  #----
+    # ----
+    # implementing gym.ENV
+    # ----
 
-  def close(self):
-    if self._viewer is not None:
-      self._viewer.close()
+    def close(self):
+        if self._viewer is not None:
+            self._viewer.close()
 
+    def step(self, action):
+        timestep = self._env.step(action)
+        obs = timestep.observation
+        reward = 0.0 if timestep.reward is None else timestep.reward
+        done = timestep.step_type.last()
+        return (obs, reward, done, {})
 
-  def step(self, action):
-    timestep = self._env.step(action)
-    obs = timestep.observation
-    reward = 0.0 if timestep.reward is None else timestep.reward
-    done = timestep.step_type.last()
-    return (obs, reward, done, {})
+    def reset(self):
+        timestep = self._env.reset()
+        if self._viewer is not None:
+            self._viewer.reset_time()
 
+        return timestep.observation
 
-  def reset(self):
-    timestep = self._env.reset()
-    if self._viewer is not None:
-      self._viewer.reset_time()
+    def seed(self, seed=None):
+        self.np_random, seed = seeding.np_random(seed)
+        return [seed]
 
-    return timestep.observation
-
-  def seed(self, seed=None):
-    self.np_random, seed = seeding.np_random(seed)
-    return [seed]
-
-  def render(self, mode='human', close=False):
-    if close and self._viewer is not None:
-      self._viewer.close()
-      self._viewer = None
-    elif close:
-      pass
-    elif self._viewer is None:
-      self._viewer = init_viewer(self._env_name, self._pause)
-      self._viewer.display(self._env)
-    else:
-      print('render 4')
-      self._viewer.display(self._env)
-
-
+    def render(self, mode="human", close=False):
+        if close and self._viewer is not None:
+            self._viewer.close()
+            self._viewer = None
+        elif close:
+            pass
+        elif self._viewer is None:
+            self._viewer = init_viewer(self._env_name, self._pause)
+            self._viewer.display(self._env)
+        else:
+            print("render 4")
+            self._viewer.display(self._env)
 
 
 def init_viewer(env_name, pause):
-  (color_bg, color_fg) = get_color_map(env_name)
-  av = AgentViewer(pause, color_bg=color_bg, color_fg=color_fg)
-  return av
+    (color_bg, color_fg) = get_color_map(env_name)
+    av = AgentViewer(pause, color_bg=color_bg, color_fg=color_fg)
+    return av
+
 
 def get_color_map(env_name):
-  module_prefix = 'ai_safety_gridworlds.environments.'
-  env_module_name =  module_prefix + env_name
-  env_module = importlib.import_module(env_module_name)
-  color_bg = env_module.GAME_BG_COLOURS
-  color_fg = env_module.GAME_FG_COLOURS
+    module_prefix = "ai_safety_gridworlds.environments."
+    env_module_name = module_prefix + env_name
+    env_module = importlib.import_module(env_module_name)
+    color_bg = env_module.GAME_BG_COLOURS
+    color_fg = env_module.GAME_FG_COLOURS
 
-  return (color_bg, color_fg)
+    return (color_bg, color_fg)
