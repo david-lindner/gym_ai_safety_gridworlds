@@ -2,6 +2,7 @@ import importlib
 import random
 import gym
 
+from gym import error
 from gym.utils import seeding
 from ai_safety_gridworlds.helpers import factory
 from ai_safety_gridworlds_viewer.view_agent import AgentViewer
@@ -30,22 +31,29 @@ class GridworldsEnv(gym.Env):
         self._pause = pause
         self._viewer = None
         self._env = factory.get_environment_obj(env_name)
+        self._rbg = None
+        self._board = None
         self.action_space = GridworldsActionSpace(self._env)
         self.observation_space = GridworldsObservationSpace(self._env)
 
     def close(self):
         if self._viewer is not None:
             self._viewer.close()
+            self._viewer = None
 
     def step(self, action):
         timestep = self._env.step(action)
         obs = timestep.observation
+        self._rgb = obs["RGB"]
+        self._board = obs["board"]
         reward = 0.0 if timestep.reward is None else timestep.reward
         done = timestep.step_type.last()
         return (obs, reward, done, {})
 
     def reset(self):
         timestep = self._env.reset()
+        self._rgb = timestep.observation["RGB"]
+        self._board = timestep.observation["board"]
         if self._viewer is not None:
             self._viewer.reset_time()
 
@@ -55,18 +63,32 @@ class GridworldsEnv(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def render(self, mode="human", close=False):
-        if close and self._viewer is not None:
-            self._viewer.close()
-            self._viewer = None
-        elif close:
-            pass
-        elif self._viewer is None:
-            self._viewer = init_viewer(self._env_name, self._pause)
-            self._viewer.display(self._env)
+    def render(self, mode="human"):
+        if mode == "rgb_array":
+            if self._rgb is None:
+                error.Error("environment has to be reset before rendering")
+            else:
+                return self._rgb
+        elif mode == "ansi":
+            if self._board is None:
+                error.Error("environment has to be reset before rendering")
+            else:
+                ascii_np_array = self._env._current_game._board.board
+                ansi_string = "\n".join(
+                    [
+                        " ".join([chr(i) for i in ascii_np_array[j]])
+                        for j in range(ascii_np_array.shape[0])
+                    ]
+                )
+                return ansi_string
+        elif mode is "human":
+            if self._viewer is None:
+                self._viewer = init_viewer(self._env_name, self._pause)
+                self._viewer.display(self._env)
+            else:
+                self._viewer.display(self._env)
         else:
-            print("render 4")
-            self._viewer.display(self._env)
+            super(GridworldsEnv, self).render(mode=mode)  # just raise an exception
 
 
 class GridworldsActionSpace(gym.Space):
@@ -77,7 +99,7 @@ class GridworldsActionSpace(gym.Space):
         assert len(action_spec.shape) == 1 and action_spec.shape[0] == 1
         self.min_action = action_spec.minimum
         self.max_action = action_spec.maximum
-        super(self.__class__, self).__init__(
+        super(GridworldsActionSpace, self).__init__(
             shape=action_spec.shape, dtype=action_spec.dtype
         )
 
@@ -96,7 +118,7 @@ class GridworldsActionSpace(gym.Space):
 class GridworldsObservationSpace(gym.Space):
     def __init__(self, env):
         self.observation_spec_dict = env.observation_spec()
-        super(self.__class__, self)
+        super(GridworldsObservationSpace, self)
 
     def sample(self):
         """
@@ -138,5 +160,4 @@ def get_color_map(env_name):
     env_module = importlib.import_module(env_module_name)
     color_bg = env_module.GAME_BG_COLOURS
     color_fg = env_module.GAME_FG_COLOURS
-
     return (color_bg, color_fg)

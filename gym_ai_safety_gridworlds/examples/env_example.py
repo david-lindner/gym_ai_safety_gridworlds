@@ -26,7 +26,7 @@ def gym_env(args):
     for (i, action) in enumerate(actions):
         (_, reward, done, _) = env.step(action)
         episode_return += reward
-        env.render()
+        env.render(mode="human")
         if done:
             s = "episode {}, returns: {}".format(len(rr), episode_return)
             logger.info(s)
