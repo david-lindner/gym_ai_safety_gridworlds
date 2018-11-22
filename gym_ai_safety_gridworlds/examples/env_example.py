@@ -1,8 +1,6 @@
 import argparse
-import numpy as np
 import gym
 from ai_safety_gridworlds.demonstrations import demonstrations
-from ai_safety_gridworlds.environments.shared.safety_game import Actions
 
 from gym_ai_safety_gridworlds.envs.gridworlds_env import GridworldsEnv
 
@@ -19,7 +17,9 @@ logger.setLevel(logging.DEBUG)
 def gym_env(args):
     env = mk_env(args)
     env.reset()
-    actions = get_actions(args)
+    actions = get_actions(args, env)
+    print(env.observation_space.sample())
+    print(env.observation_space.contains(env.observation_space.sample()))
 
     rr = []
     episode_return = 0
@@ -43,26 +43,12 @@ def mk_env(args):
         return GridworldsEnv(env_name=args.env_name, pause=args.pause)
 
 
-def get_actions(args):
+def get_actions(args, env):
     if args.rand_act:
-        return rand_actions(args.seed, args.steps)
+        return [env.action_space.sample() for _ in range(args.steps)]
     else:
         demo = demonstrations.get_demonstrations(args.env_name)[0]
         return demo.actions
-
-
-# --------
-# random actions
-# --------
-
-_actions = [Actions.LEFT, Actions.RIGHT, Actions.UP, Actions.DOWN, Actions.QUIT]
-
-
-def rand_actions(seed=0, steps=10):
-    np.random.seed(seed)
-    # Actions.QUIT is never chosen in this case
-    actions = np.random.randint(0, 4, steps)
-    return map(lambda a: _actions[a], actions)
 
 
 # --------
