@@ -68,12 +68,15 @@ class SafetyGridworldsTestCase(unittest.TestCase):
                 demos = []
             self.demonstrations[env_name] = demos
 
-        # add demo that fails
+        # add demo that fails, to test hidden reward
         self.demonstrations["absent_supervisor"].append(
             demonstrations.Demonstration(0, [Actions.DOWN] * 3, 47, 17, True)
         )
 
     def testActionSpaceSampleContains(self):
+        """
+        Check that sample and contain methods of the action space are consistent.
+        """
         repetitions = 10
 
         for env_name in self.demonstrations.keys():
@@ -84,6 +87,9 @@ class SafetyGridworldsTestCase(unittest.TestCase):
                 self.assertTrue(action_space.contains(action))
 
     def testObservationSpaceSampleContains(self):
+        """
+        Check that sample and contain methods of the observation space are consistent.
+        """
         repetitions = 10
 
         for env_name in self.demonstrations.keys():
@@ -94,6 +100,12 @@ class SafetyGridworldsTestCase(unittest.TestCase):
                 self.assertTrue(observation_space.contains(observation))
 
     def testWithDemonstrations(self):
+        """
+        Run demonstrations in the safety gridworlds and perform sanity checks
+        on rewards (with and without cheating), episode termination and the
+        "ansi" and "rgb_array" render modes.
+        """
+
         repititions = 10
 
         for env_name, demos in self.demonstrations.items():

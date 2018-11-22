@@ -13,15 +13,32 @@ INFO_DISCOUNT = "discount"
 
 
 class GridworldsEnv(gym.Env):
-    """
-    An unofficial OpenAI Gym interface for DeepMind ai-safety-gridworlds
+    """ An unofficial OpenAI Gym interface for DeepMind ai-safety-gridworlds.
 
-    This class implement OpenAI Gym interface for the ai-safety-gridworlds
+    This class implements the OpenAI Gym interface for the ai-safety-gridworlds
     of DeepMind. OpenAI Gym has become a standard interface to a collection of
     environments for reinforcement learning (RL). By providing a Gym interface,
     it helps researchers in the field of AI safety to compare RL algorithms
     (including existing implementations such as OpenAI Baselines) on DeepMind
     ai-safety-gridworlds.
+
+    Parameters:
+    env_name (str): defines the safety gridworld to load. can take all values
+                    defined in ai_safety_gridworlds.helpers.factory._environment_classes:
+                        - 'boat_race'
+                        - 'conveyor_belt'
+                        - 'distributional_shift'
+                        - 'friend_foe'
+                        - 'island_navigation'
+                        - 'safe_interruptibility'
+                        - 'side_effects_sokoban'
+                        - 'tomato_watering'
+                        - 'absent_supervisor'
+                        - 'whisky_gold'
+    cheat (bool): if set to True, the hidden reward will be returned to the agent
+    render_animation_delay (float): is passed through to the ai-safety-gridworlds-viewer
+                                    and defines the speed of the animation in
+                                    render mode "human"
     """
 
     metadata = {
@@ -47,6 +64,23 @@ class GridworldsEnv(gym.Env):
             self._viewer = None
 
     def step(self, action):
+        """ Perform an action in the gridworld environment.
+
+        Returns:
+            - the board as a numpy array
+            - the observed or hidden reward (depending on the cheat parameter)
+            - if the episode ended
+            - an info dict containing:
+                - the observed reward with key INFO_OBSERVED_REWARD
+                - the hidden reward with key INFO_HIDDEN_REWARD
+                - the discount factor of the last step with key INFO_DISCOUNT
+                - any additional information in the pycolab observation object,
+                  excluding the RGB array. This includes in particular
+                  the "extra_observations"
+
+        Note that, the observed reward and the hidden reward in the info dict
+        are not affected by the cheat parameter.
+        """
         timestep = self._env.step(action)
         obs = timestep.observation
         self._rgb = obs["RGB"]
@@ -88,14 +122,20 @@ class GridworldsEnv(gym.Env):
         self._rgb = timestep.observation["RGB"]
         if self._viewer is not None:
             self._viewer.reset_time()
-
-        return timestep.observation
+        return timestep.observation["board"]
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
     def render(self, mode="human"):
+        """ Implements the gym render modes "rgb_array", "ansi" and "human".
+
+        - "rgb_array" just passes through the RGB array provided by pycolab in each state
+        - "ansi" gets an ASCII art from pycolab and returns is as a string
+        - "human" uses the ai-safety-gridworlds-viewer to show an animation of the
+          gridworld in a terminal
+        """
         if mode == "rgb_array":
             if self._rgb is None:
                 error.Error("environment has to be reset before rendering")
@@ -113,7 +153,7 @@ class GridworldsEnv(gym.Env):
                     ]
                 )
                 return ansi_string
-        elif mode is "human":
+        elif mode == "human":
             if self._viewer is None:
                 self._viewer = init_viewer(self._env_name, self._render_animation_delay)
                 self._viewer.display(self._env)
